@@ -1,32 +1,23 @@
+import os
 import yfinance as yf
-from ta.trend import SMAIndicator, EMAIndicator
-from ta.momentum import RSIIndicator
 import requests
 
-TOKEN = "8158820985:AAFq3SJngnxZ__fPWcyGEzBVHdBhm4TxN2g"
+# Mengambil token dari GitHub Secrets
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = "5217743374"
 
+portfolio = {"NVDA": 120.00, "AAPL": 150.00}
+
 def hantar_telegram(mesej):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={mesej}"
-    try:
+    if TOKEN: # Pastikan token ada sebelum hantar
+        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={CHAT_ID}&text={mesej}"
         requests.get(url)
-    except:
-        pass
 
-watchlist = ["NVDA", "AAPL", "TSM", "MSFT", "GOOGL"]
-
-for simbol in watchlist:
+for simbol, harga_beli in portfolio.items():
     saham = yf.Ticker(simbol)
-    data = saham.history(period="6mo")
+    data = saham.history(period="1d")
     if not data.empty:
-        ma50 = SMAIndicator(close=data['Close'], window=50).sma_indicator().iloc[-1]
-        ema20 = EMAIndicator(close=data['Close'], window=20).ema_indicator().iloc[-1]
-        rsi = RSIIndicator(close=data['Close'], window=14).rsi().iloc[-1]
-        harga = data['Close'].iloc[-1]
-        
-        if harga > ema20 and rsi < 60:
-            hantar_telegram(f"SIGNAL BELI: {simbol} pada {harga:.2f}")
-            print(f"Signal dihantar: BELI {simbol}")
-        elif harga < ma50:
-            hantar_telegram(f"JUAL/CUT LOSS: {simbol} pada {harga:.2f}")
-            print(f"Signal dihantar: JUAL {simbol}")
+        harga_semasa = data['Close'].iloc[-1]
+        peratus_untung = ((harga_semasa - harga_beli) / harga_beli) * 100
+        if peratus_untung >= 5.0:
+            hantar_telegram(f"🔥 PROFIT ALERT! {simbol} sudah untung {peratus_untung:.2f}%. Sila pertimbangkan untuk JUAL!")
