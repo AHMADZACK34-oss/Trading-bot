@@ -1,7 +1,7 @@
 name: Trading Bot Automation
 on:
   schedule:
-    - cron: '0 13 * * *' # Bot akan jalan setiap hari jam 9 pagi
+    - cron: '45 13 * * *' # Bot akan jalan setiap hari jam 9:45 malam waktu Malaysia
   workflow_dispatch:
 
 jobs:
