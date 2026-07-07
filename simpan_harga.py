@@ -15,45 +15,29 @@ def hantar_ke_telegram(mesej, fail_suara=None):
         files = {'voice': open(fail_suara, 'rb')}
         requests.post(url_suara, data={'chat_id': CHAT_ID}, files=files)
 
-def analisa_pasaran():
-    senarai_saham = ['NVDA', 'AAPL', 'TSLA']
-    laporan = "🧠 <b>LAPORAN JARVIS AI</b>\n"
+# Logik utama terus dijalankan
+senarai_saham = ['NVDA', 'AAPL', 'TSLA']
+laporan = "🧠 <b>LAPORAN JARVIS AI</b>\n"
+
+for s in senarai_saham:
+    t = yf.Ticker(s)
+    hist = t.history(period="1mo")
     
-    for s in senarai_saham:
-        t = yf.Ticker(s)
-        hist = t.history(period="1mo")
-        
-        if hist.empty:
-            continue
-            
+    if not hist.empty:
         current = hist['Close'].iloc[-1]
         volume = hist['Volume'].iloc[-1]
         avg_vol = hist['Volume'].mean()
         
-        delta = hist['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        rsi = 100 - (100 / (1 + (gain.iloc[-1] / loss.iloc[-1])))
-        
-        status_jerung = "🦈 AKTIF" if volume > avg_vol * 1.5 else "⚪ BIASA"
         peratus_perubahan = ((current - hist['Open'].iloc[0]) / hist['Open'].iloc[0]) * 100
-        
-        laporan += f"\n<b>{s}</b>: ${current:.2f} ({peratus_perubahan:+.1f}%)\n"
-        laporan += f"• RSI: {rsi:.1f} | Jerung: {status_jerung}\n"
+        laporan += f"\n• {s}: ${current:.2f} ({peratus_perubahan:+.1f}%)"
         
         if peratus_perubahan >= 5.0:
-            teks_suara = f"Tahniah Tuan Ahmad! Saham {s} telah melonjak {peratus_perubahan:.0f} peratus."
-            tts = gTTS(text=teks_suara, lang='ms')
+            tts = gTTS(text=f"Tahniah Tuan Ahmad! Saham {s} naik {peratus_perubahan:.0f} peratus.", lang='ms')
             tts.save("jarvis.mp3")
             hantar_ke_telegram(f"🚀 <b>TAHNIAH!</b> {s} naik {peratus_perubahan:.1f}%", "jarvis.mp3")
-            
         elif peratus_perubahan <= -3.0:
-            teks_suara = f"Amaran Tuan Ahmad! Saham {s} jatuh sebanyak {abs(peratus_perubahan):.0f} peratus."
-            tts = gTTS(text=teks_suara, lang='ms')
+            tts = gTTS(text=f"Amaran Tuan Ahmad! Saham {s} jatuh {abs(peratus_perubahan):.0f} peratus.", lang='ms')
             tts.save("jarvis.mp3")
             hantar_ke_telegram(f"⚠️ <b>BAHAYA!</b> {s} jatuh {peratus_perubahan:.1f}%", "jarvis.mp3")
-            
-    hantar_ke_telegram(laporan)
 
-if name == "__main__":
-    analisa_pasaran()
+hantar_ke_telegram(laporan)
