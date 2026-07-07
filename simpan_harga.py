@@ -24,6 +24,8 @@ for s in senarai_saham:
         div = info.get('dividendYield', 0) * 100
         pe = info.get('trailingPE', 0)
         margin = (info.get('profitMargins', 0) or 0) * 100
+        # Menarik data hutang
+        debt = (info.get('totalDebt', 0) or 0) / 1e9
         
         # Berita Terkini
         news = t.news
@@ -37,13 +39,14 @@ for s in senarai_saham:
         if ytd > 10: status = "🛒 BUY (Uptrend)"
         elif ytd < -10: status = "⚠️ SELL (Downtrend)"
         
+        # Penambahan Debt dalam paparan
         laporan += (f"\n<b>{s}</b> | {status} | ${curr:.2f}\n"
                     f"• YTD: {ytd:.1f}% | PE: {pe:.1f} | Margin: {margin:.1f}%\n"
-                    f"• Cap: ${m_cap:.1f}B | Div: {div:.1f}%\n"
-                    f"• Berita:\n{news_text}\n"
+                    f"• Cap: ${m_cap:.1f}B | Debt: ${debt:.1f}B\n"
+                    f"• Div: {div:.1f}% | Berita:\n{news_text}\n"
                     f"----------------------------")
 
-        # Noti Suara (Direct)
+        # Noti Suara
         if "BUY" in status:
             tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} dalam trend positif.", lang='ms')
             tts.save("jarvis.mp3")
