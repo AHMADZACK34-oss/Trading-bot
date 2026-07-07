@@ -1,11 +1,12 @@
 name: Trading Bot Automation
+
 on:
-  schedule:
-    # 21:45 MYT = 13:45 UTC
-    - cron: '45 13 * * *'
   push:
     branches:
       - main
+  schedule:
+    - cron: '45 13 * * *' # Jam 9:45 PM MYT
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,7 +17,9 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install dependencies
-        run: pip install requests yfinance
+        run: |
+          pip install --upgrade pip
+          pip install requests yfinance pandas gtts
       - name: Run bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
