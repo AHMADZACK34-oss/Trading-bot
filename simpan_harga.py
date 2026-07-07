@@ -7,11 +7,9 @@ TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
 
 def hantar_ke_telegram(mesej, fail_suara=None):
-    # Hantar Laporan Teks
     url_teks = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     requests.post(url_teks, data={'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'})
     
-    # Hantar Suara Jarvis jika ada
     if fail_suara and os.path.exists(fail_suara):
         url_suara = f"https://api.telegram.org/bot{TOKEN}/sendVoice"
         files = {'voice': open(fail_suara, 'rb')}
@@ -32,7 +30,6 @@ def analisa_pasaran():
         volume = hist['Volume'].iloc[-1]
         avg_vol = hist['Volume'].mean()
         
-        # Pengiraan RSI Ringkas
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -44,15 +41,14 @@ def analisa_pasaran():
         laporan += f"\n<b>{s}</b>: ${current:.2f} ({peratus_perubahan:+.1f}%)\n"
         laporan += f"• RSI: {rsi:.1f} | Jerung: {status_jerung}\n"
         
-        # Logik Jarvis Bersuara
         if peratus_perubahan >= 5.0:
-            teks_suara = f"Tahniah Tuan Ahmad! Saham {s} telah melonjak {peratus_perubahan:.0f} peratus. Ini satu pencapaian yang hebat."
+            teks_suara = f"Tahniah Tuan Ahmad! Saham {s} telah melonjak {peratus_perubahan:.0f} peratus."
             tts = gTTS(text=teks_suara, lang='ms')
             tts.save("jarvis.mp3")
             hantar_ke_telegram(f"🚀 <b>TAHNIAH!</b> {s} naik {peratus_perubahan:.1f}%", "jarvis.mp3")
             
         elif peratus_perubahan <= -3.0:
-            teks_suara = f"Amaran Tuan Ahmad! Saham {s} jatuh sebanyak {abs(peratus_perubahan):.0f} peratus. Sila ambil tindakan."
+            teks_suara = f"Amaran Tuan Ahmad! Saham {s} jatuh sebanyak {abs(peratus_perubahan):.0f} peratus."
             tts = gTTS(text=teks_suara, lang='ms')
             tts.save("jarvis.mp3")
             hantar_ke_telegram(f"⚠️ <b>BAHAYA!</b> {s} jatuh {peratus_perubahan:.1f}%", "jarvis.mp3")
