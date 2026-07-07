@@ -1,4 +1,4 @@
-import yfinance as yf, requests, os
+import yfinance as yf, requests, os, datetime
 from gtts import gTTS
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -10,7 +10,12 @@ def hantar(teks, suara=None):
         requests.post(f"https://api.telegram.org/bot{TOKEN}/sendVoice", data={'chat_id': CHAT_ID}, files={'voice': open(suara, 'rb')})
 
 senarai_saham = ['AMD', 'WDC', 'INTC', 'TSLA', 'AAPL', 'NVDA', 'MSFT', 'NVO', 'BAC', 'ORCL', 'IVV', 'MCD', 'GOOGL', 'PLTR', 'SAP', 'META', 'AMZN', 'JEPQ', 'WMT', 'DELL', 'ARM', 'ISRG']
-laporan = "🧠 <b>MASTER TERMINAL PRO - TUAN ZAHRAN</b>\n"
+
+# Menetapkan waktu Malaysia (UTC+8)
+waktu_sekarang = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+waktu_str = waktu_sekarang.strftime("%d/%m/%Y %I:%M %p")
+
+laporan = f"🧠 <b>MASTER TERMINAL PRO - TUAN ZAHRAN</b>\n🕒 <i>Data diambil: {waktu_str}</i>\n"
 
 for s in senarai_saham:
     t = yf.Ticker(s)
@@ -24,7 +29,6 @@ for s in senarai_saham:
         div = info.get('dividendYield', 0) * 100
         pe = info.get('trailingPE', 0)
         margin = (info.get('profitMargins', 0) or 0) * 100
-        # Menarik data hutang
         debt = (info.get('totalDebt', 0) or 0) / 1e9
         
         # Berita Terkini
@@ -39,14 +43,13 @@ for s in senarai_saham:
         if ytd > 10: status = "🛒 BUY (Uptrend)"
         elif ytd < -10: status = "⚠️ SELL (Downtrend)"
         
-        # Penambahan Debt dalam paparan
         laporan += (f"\n<b>{s}</b> | {status} | ${curr:.2f}\n"
                     f"• YTD: {ytd:.1f}% | PE: {pe:.1f} | Margin: {margin:.1f}%\n"
                     f"• Cap: ${m_cap:.1f}B | Debt: ${debt:.1f}B\n"
                     f"• Div: {div:.1f}% | Berita:\n{news_text}\n"
                     f"----------------------------")
 
-        # Noti Suara
+        # Noti Suara (Direct)
         if "BUY" in status:
             tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} dalam trend positif.", lang='ms')
             tts.save("jarvis.mp3")
