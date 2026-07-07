@@ -24,9 +24,12 @@ for s in senarai_saham:
         div = info.get('dividendYield', 0) * 100
         pe = info.get('trailingPE', 0)
         
-        # Berita Terkini
-        news = t.news[:2] # Ambil 2 tajuk berita
-        news_text = "\n".join([f"• {n['title']}" for n in news])
+        # Baiki ralat berita: Tambah check kalau 'title' wujud
+        news = t.news
+        news_text = "Tiada berita terkini."
+        if news and isinstance(news, list):
+            titles = [n.get('title', 'Tiada tajuk') for n in news[:2]]
+            news_text = "\n".join([f"• {t}" for t in titles])
         
         # Logik Signal
         status = "HOLD"
@@ -39,7 +42,7 @@ for s in senarai_saham:
                     f"• Berita:\n{news_text}\n"
                     f"----------------------------")
 
-        # Noti Suara (Direct)
+        # Noti Suara
         if "BUY" in status:
             tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} dalam trend positif.", lang='ms')
             tts.save("jarvis.mp3")
