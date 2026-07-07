@@ -10,37 +10,38 @@ def hantar(teks, suara=None):
         requests.post(f"https://api.telegram.org/bot{TOKEN}/sendVoice", data={'chat_id': CHAT_ID}, files={'voice': open(suara, 'rb')})
 
 senarai_saham = ['AMD', 'WDC', 'INTC', 'TSLA', 'AAPL', 'NVDA', 'MSFT', 'NVO', 'BAC', 'ORCL', 'IVV', 'MCD', 'GOOGL', 'PLTR', 'SAP', 'META', 'AMZN', 'JEPQ', 'WMT', 'DELL', 'ARM', 'ISRG']
-laporan = "🧠 <b>LAPORAN ANALISIS PRO - TUAN ZAHRAN</b>\n"
+laporan = "🧠 <b>LAPORAN ANALISIS PRO (DOUBLE-CHECK) - TUAN ZAHRAN</b>\n"
 
 for s in senarai_saham:
     t = yf.Ticker(s)
-    hist = t.history(period="1wk")
+    hist_2wk = t.history(period="2wk")
+    hist_1mo = t.history(period="1mo")
     info = t.info
     
-    if not hist.empty:
-        current = hist['Close'].iloc[-1]
-        peratus = ((current - hist['Open'].iloc[0]) / hist['Open'].iloc[0]) * 100
+    if not hist_2wk.empty and not hist_1mo.empty:
+        curr = hist_2wk['Close'].iloc[-1]
+        peratus_2wk = ((curr - hist_2wk['Open'].iloc[0]) / hist_2wk['Open'].iloc[0]) * 100
+        peratus_1mo = ((curr - hist_1mo['Open'].iloc[0]) / hist_1mo['Open'].iloc[0]) * 100
         
-        # Logik Keputusan
+        # Logik Double-Check: Signal hanya valid jika momentum 2 minggu & 1 bulan selari
         keputusan = "HOLD"
-        if peratus >= 5.0: keputusan = "🛒 BUY (Murah & Potensi)"
-        elif peratus <= -3.0: keputusan = "⚠️ SELL (Bahaya)"
+        if peratus_2wk >= 5.0 and peratus_1mo >= 0:
+            keputusan = "🛒 BUY (Murah & Potensi)"
+        elif peratus_2wk <= -3.0 or peratus_1mo <= -5.0:
+            keputusan = "⚠️ SELL (Bahaya)"
         
-        # Data Tambahan
         pe = info.get('trailingPE', 0)
         margin = info.get('profitMargins', 0) * 100
-        rsi = "N/A" # Perlu library teknikal jika nak nilai tepat
-        
-        laporan += f"\n<b>{s}</b>: ${current:.2f}\n• Keputusan: {keputusan}\n• PE: {pe:.1f} | Margin: {margin:.1f}%\n"
+        laporan += f"\n<b>{s}</b>: ${curr:.2f}\n• Keputusan: {keputusan}\n• PE: {pe:.1f} | Margin: {margin:.1f}%\n"
 
-        # Suara Terus (Tanpa Eja)
-        if peratus >= 5.0:
-            tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} naik {peratus:.0f} peratus.", lang='ms')
+        # Noti Suara (Terus Sebut BUY/SELL)
+        if "BUY" in keputusan:
+            tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} berada dalam trend positif.", lang='ms')
             tts.save("jarvis.mp3")
-            hantar(f"🚀 <b>TAHNIAH!</b> {s} naik {peratus:.1f}%.", "jarvis.mp3")
-        elif peratus <= -3.0:
-            tts = gTTS(text=f"SELL. Amaran Tuan Zahran, {s} jatuh {abs(peratus):.0f} peratus.", lang='ms')
+            hantar(f"🚀 <b>TAHNIAH!</b> {s} adalah signal BUY.", "jarvis.mp3")
+        elif "SELL" in keputusan:
+            tts = gTTS(text=f"SELL. Amaran Tuan Zahran, {s} menunjukkan kejatuhan.", lang='ms')
             tts.save("jarvis.mp3")
-            hantar(f"⚠️ <b>BAHAYA!</b> {s} jatuh {abs(peratus):.1f}%.", "jarvis.mp3")
+            hantar(f"⚠️ <b>BAHAYA!</b> {s} adalah signal SELL.", "jarvis.mp3")
 
 hantar(laporan)
