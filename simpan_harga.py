@@ -1,56 +1,49 @@
-import os, requests, yfinance as yf, json, datetime
+import yfinance as yf
+import requests
+import os
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
-SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', 'DELL', 'AVGO', 'ORCL', 'PLTR', 'INTC', 'NVO', 'SPCX', 'WMT', 'BAC', 'NOW', '0166.KL']
-FILE = 'harga_harian.json'
 
-def hantar(text):
-    requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': text, 'parse_mode': 'HTML'})
+def hantar(pesan):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    requests.post(url, data={'chat_id': CHAT_ID, 'text': pesan, 'parse_mode': 'HTML'})
 
-def get_rsi(prices, n=14):
-    delta = prices.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=n).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=n).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs.iloc[-1]))
-
-hari_ini = datetime.date.today().isoformat()
-if os.path.exists(FILE):
-    with open(FILE, 'r') as f: data = json.load(f)
-else:
-    data = {'tarikh': '', 'rujukan': {}}
-
-if data['tarikh'] != hari_ini:
-    data['rujukan'] = {s: yf.Ticker(s).history(period="1d")['Close'].iloc[-1] for s in SYMBOLS}
-    data['tarikh'] = hari_ini
-    with open(FILE, 'w') as f: json.dump(data, f)
-    hantar(f"✅ <b>Sistem Aktif - Rujukan: {hari_ini}</b>")
-
-pesan = f"📊 <b>LAPORAN PRO {hari_ini}</b>\n"
-perlu_hantar = False
-
-for s in SYMBOLS:
-    try:
+def analisa_saham(ticker_list):
+    laporan = "📈 <b>LAPORAN ANALISIS PRO</b>\n"
+    for s in ticker_list:
         t = yf.Ticker(s)
-        df = t.history(period="30d")
-        harga = df['Close'].iloc[-1]
+        hist = t.history(period="1mo")
+        info = t.info
         
-        # Pengiraan Teknikal Ringan
-        ma20 = df['Close'].rolling(window=20).mean().iloc[-1]
-        rsi = get_rsi(df['Close'])
-        volume = df['Volume'].iloc[-1]
-        avg_vol = df['Volume'].iloc[-11:-1].mean()
+        # Data Asas
+        close = hist['Close'].iloc[-1]
+        volume = hist['Volume'].iloc[-1]
+        avg_vol = hist['Volume'].mean()
         
-        untung = ((harga - data['rujukan'][s]) / data['rujukan'][s]) * 100
+        # Teknikal (RSI Ringkas)
+        delta = hist['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs.iloc[-1]))
         
-        if untung >= 5.0 and rsi < 75:
-            vol_icon = "🦈" if volume > avg_vol else "🚀"
-            pesan += f"\n{vol_icon} <b>{s}</b>: ${harga:.2f} (+{untung:.1f}%) | RSI: {rsi:.0f}"
-            perlu_hantar = True
-        elif untung <= -3.0:
-            pesan += f"\n⚠️ <b>{s}</b>: ${harga:.2f} (SL! {untung:.1f}%)"
-            perlu_hantar = True
-    except: continue
+        # Fundamental & Jerung
+        pe = info.get('forwardPE', 0)
+        pm = info.get('profitMargins', 0) * 100
+        jerung = "🦈 AKTIF" if volume > avg_vol * 1.5 else "⚪ BIASA"
+        
+        # Logik Keputusan
+        keputusan = "HOLD"
+        if rsi < 30 and pe < 20: keputusan = "🛒 BUY (Murah & Potensi)"
+        elif rsi > 70: keputusan = "💰 SELL (Overbought)"
+        elif volume > avg_vol * 2: keputusan = "🚀 BUY (Lonjakan Jerung)"
+        
+        laporan += f"\n<b>{s}</b>: ${close:.2f}\n"
+        laporan += f"• Keputusan: {keputusan}\n"
+        laporan += f"• Jerung: {jerung} | RSI: {rsi:.1f}\n"
+        laporan += f"• PE: {pe:.1f} | Margin: {pm:.1f}%\n"
+    
+    hantar(laporan)
 
-if perlu_hantar: hantar(pesan)
+analisa_saham(['NVDA', 'AAPL', 'TSLA', 'ORCL', 'WMT'])
