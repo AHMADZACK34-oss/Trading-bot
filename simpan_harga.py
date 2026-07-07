@@ -1,52 +1,39 @@
 import os
 import requests
 import yfinance as yf
-import pandas as pd
 
-# Gunakan senarai ini (Tanda petikan adalah jenis standard)
-SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', 'DELL', 'AVGO', 'ORCL', 'PLTR', 'INTC', 'NVO', 'SPCX', 'WMT', 'BAC', 'NOW', '0166.KL']
+# 1. Masukkan harga beli anda di sini
+# Contoh: 'NVDA': 185.00 bermaksud anda beli NVDA pada harga $185.00
+PORTFOLIO = {
+    'NVDA': 185.00, 'AAPL': 295.00, 'TSLA': 400.00, 'AMD': 520.00, 'DELL': 400.00,
+    'AVGO': 350.00, 'ORCL': 140.00, 'PLTR': 125.00, 'INTC': 115.00, 'NVO': 45.00,
+    'SPCX': 155.00, 'WMT': 105.00, 'BAC': 55.00, 'NOW': 100.00, '0166.KL': 2.10
+}
+
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
-
-def get_indicators(df):
-    delta = df['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs.iloc[-1]))
-    
-    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
-    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
-    macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    
-    ema200 = df['Close'].ewm(span=200, adjust=False).mean().iloc[-1]
-    
-    return rsi, macd.iloc[-1], signal.iloc[-1], ema200
 
 def hantar_telegram(mesej):
     requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'})
 
-laporan = "🧠 <b>LAPORAN GENIUS BOT V2</b>\n"
+laporan = "🚨 <b>ALERT: TARGET 5% TERCAPAI!</b>\n"
+ada_untung = False
 
-for s in SYMBOLS:
+for s, harga_beli in PORTFOLIO.items():
     try:
         stock = yf.Ticker(s)
-        hist = stock.history(period="250d")
+        hist = stock.history(period="1d")
         if not hist.empty:
-            harga = hist['Close'].iloc[-1]
-            rsi, macd, signal, ema200 = get_indicators(hist)
+            harga_semasa = hist['Close'].iloc[-1]
+            profit_pct = ((harga_semasa - harga_beli) / harga_beli) * 100
             
-            status = "HOLD ⚪"
-            if rsi > 70 or (macd > signal and harga < ema200):
-                status = "💰 <b>SELL (Profit Taking)</b>"
-            elif rsi < 30 and macd < signal:
-                status = "🛒 <b>BUY (Potential Bottom)</b>"
-            elif harga > ema200 and macd > signal:
-                status = "🚀 <b>STRONG BUY/HOLD (Bullish)</b>"
-            
-            laporan += f"\n<b>{s}</b>: ${harga:.2f}\nRSI: {rsi:.1f} | MACD: {'+' if macd>signal else '-'}\nEMA200: ${ema200:.2f}\nStatus: {status}\n"
-    except Exception as e:
-        laporan += f"\n<b>{s}</b>: Ralat data\n"
+            # Jika untung 5% ke atas, tambah dalam mesej
+            if profit_pct >= 5.0:
+                laporan += f"\n<b>{s}</b>: ${harga_semasa:.2f}\nUntung: {profit_pct:.2f}% 🚀 <b>JUAL SEKARANG!</b>\n"
+                ada_untung = True
+    except:
+        continue
 
-hantar_telegram(laporan)
+# Hanya hantar mesej jika ada kaunter yang capai target 5%
+if ada_untung:
+    hantar_telegram(laporan)
