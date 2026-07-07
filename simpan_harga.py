@@ -1,44 +1,27 @@
-import os
-import requests
-import yfinance as yf
-import json
+import os, requests, yfinance as yf, json
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
 SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', 'DELL', 'AVGO', 'ORCL', 'PLTR', 'INTC', 'NVO', 'SPCX', 'WMT', 'BAC', 'NOW', '0166.KL']
+FILE = 'harga_malam.json'
 
-# Simpan harga rujukan dalam fail 'harga_malam.json'
-FILENAME = 'harga_malam.json'
+def hantar(text):
+    requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': text, 'parse_mode': 'HTML'})
 
-def hantar_telegram(mesej):
-    requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'})
-
-# 1. Muat harga rujukan malam ini
-if not os.path.exists(FILENAME):
-    harga_rujukan = {}
+# 1. Kalau fail belum ada, bot akan tangkap harga hari ini sebagai rujukan
+if not os.path.exists(FILE):
+    rujukan = {s: yf.Ticker(s).history(period="1d")['Close'].iloc[-1] for s in SYMBOLS}
+    with open(FILE, 'w') as f: json.dump(rujukan, f)
+    hantar("✅ <b>Bot telah menetapkan harga rujukan untuk dipantau!</b>")
+else:
+    # 2. Kalau fail dah ada, bot akan kira untung
+    with open(FILE, 'r') as f: rujukan = json.load(f)
+    pesan = "🚨 <b>TARGET 5% TERCAPAI!</b>\n"
+    ada = False
     for s in SYMBOLS:
-        stock = yf.Ticker(s)
-        harga_rujukan[s] = stock.history(period="1d")['Close'].iloc[-1]
-    with open(FILENAME, 'w') as f:
-        json.dump(harga_rujukan, f)
-    hantar_telegram("✅ <b>Bot telah menetapkan harga rujukan malam ini!</b>")
-
-# 2. Kira keuntungan dari harga rujukan
-with open(FILENAME, 'r') as f:
-    harga_rujukan = json.load(f)
-
-laporan = "🚨 <b>ALERT: TARGET 5% DARI HARGA MALAM INI!</b>\n"
-ada_untung = False
-
-for s in SYMBOLS:
-    stock = yf.Ticker(s)
-    harga_semasa = stock.history(period="1d")['Close'].iloc[-1]
-    harga_beli = harga_rujukan[s]
-    profit_pct = ((harga_semasa - harga_beli) / harga_beli) * 100
-    
-    if profit_pct >= 5.0:
-        laporan += f"\n<b>{s}</b>: ${harga_semasa:.2f}\nUntung: {profit_pct:.2f}% 🚀 <b>JUAL SEKARANG!</b>\n"
-        ada_untung = True
-
-if ada_untung:
-    hantar_telegram(laporan)
+        harga = yf.Ticker(s).history(period="1d")['Close'].iloc[-1]
+        untung = ((harga - rujukan[s]) / rujukan[s]) * 100
+        if untung >= 5.0:
+            pesan += f"\n<b>{s}</b>: ${harga:.2f} ({untung:.2f}%) 🚀 <b>JUAL!</b>"
+            ada = True
+    if ada: hantar(pesan)
