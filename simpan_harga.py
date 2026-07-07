@@ -15,9 +15,9 @@ def hantar_ke_telegram(mesej, fail_suara=None):
         files = {'voice': open(fail_suara, 'rb')}
         requests.post(url_suara, data={'chat_id': CHAT_ID}, files=files)
 
-# Logik utama terus dijalankan
-senarai_saham = ['NVDA', 'AAPL', 'TSLA']
-laporan = "🧠 <b>LAPORAN JARVIS AI</b>\n"
+# Senarai saham penuh anda
+senarai_saham = ['AMD', 'WDC', 'INTC', 'TSLA', 'AAPL', 'NVDA', 'MSFT', 'NVO', 'BAC', 'ORCL', 'IVV', 'MCD', 'GOOGL', 'PLTR', 'SAP', 'META', 'AMZN', 'JEPQ', 'WMT', 'DELL', 'ARM', 'ISRG']
+laporan = "🧠 <b>LAPORAN JARVIS AI - SENARAI PENUH</b>\n"
 
 for s in senarai_saham:
     t = yf.Ticker(s)
@@ -25,12 +25,10 @@ for s in senarai_saham:
     
     if not hist.empty:
         current = hist['Close'].iloc[-1]
-        volume = hist['Volume'].iloc[-1]
-        avg_vol = hist['Volume'].mean()
-        
         peratus_perubahan = ((current - hist['Open'].iloc[0]) / hist['Open'].iloc[0]) * 100
         laporan += f"\n• {s}: ${current:.2f} ({peratus_perubahan:+.1f}%)"
         
+        # Amaran suara
         if peratus_perubahan >= 5.0:
             tts = gTTS(text=f"Tahniah Tuan Ahmad! Saham {s} naik {peratus_perubahan:.0f} peratus.", lang='ms')
             tts.save("jarvis.mp3")
