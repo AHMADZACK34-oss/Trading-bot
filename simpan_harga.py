@@ -4,7 +4,7 @@ import yfinance as yf
 import pandas as pd
 
 # Masukkan sebanyak mana kaunter yang anda mahu di sini
-SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD', '0166.KL'] 
+SYMBOLS = ['NVDA', 'AAPL', 'TSLA', 'AMD','DELL,'AVGO','ORCL','PLTR,'INTC','NVO','SPCX','WMT','BAC','NOW'0166.KL'] 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
 
