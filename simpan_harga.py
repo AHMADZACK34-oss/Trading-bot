@@ -1,4 +1,4 @@
-import os, requests, yfinance as yf, json, datetime, pandas_ta as ta
+import os, requests, yfinance as yf, json, datetime
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
@@ -7,6 +7,13 @@ FILE = 'harga_harian.json'
 
 def hantar(text):
     requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': text, 'parse_mode': 'HTML'})
+
+def get_rsi(prices, n=14):
+    delta = prices.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=n).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=n).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs.iloc[-1]))
 
 hari_ini = datetime.date.today().isoformat()
 if os.path.exists(FILE):
@@ -18,43 +25,31 @@ if data['tarikh'] != hari_ini:
     data['rujukan'] = {s: yf.Ticker(s).history(period="1d")['Close'].iloc[-1] for s in SYMBOLS}
     data['tarikh'] = hari_ini
     with open(FILE, 'w') as f: json.dump(data, f)
-    hantar(f"✅ <b>Rujukan baru untuk {hari_ini} telah ditetapkan!</b>")
+    hantar(f"✅ <b>Sistem Aktif - Rujukan: {hari_ini}</b>")
 
-pesan = f"📊 <b>ANALISIS PRO {hari_ini}</b>\n"
+pesan = f"📊 <b>LAPORAN PRO {hari_ini}</b>\n"
 perlu_hantar = False
 
 for s in SYMBOLS:
     try:
         t = yf.Ticker(s)
-        df = t.history(period="6mo")
-        info = t.info
+        df = t.history(period="30d")
+        harga = df['Close'].iloc[-1]
         
-        # Indikator Teknikal
-        close = df['Close']
-        ema200 = ta.ema(close, length=200).iloc[-1]
-        ma50 = ta.sma(close, length=50).iloc[-1]
-        rsi = ta.rsi(close, length=14).iloc[-1]
-        macd = ta.macd(close).iloc[-1, 0] # MACD Line
-        
-        # Logik Jerung & Harga
-        harga = close.iloc[-1]
+        # Pengiraan Teknikal Ringan
+        ma20 = df['Close'].rolling(window=20).mean().iloc[-1]
+        rsi = get_rsi(df['Close'])
         volume = df['Volume'].iloc[-1]
         avg_vol = df['Volume'].iloc[-11:-1].mean()
+        
         untung = ((harga - data['rujukan'][s]) / data['rujukan'][s]) * 100
         
-        # Fundamental (Profit Margin & PE)
-        pm = info.get('profitMargins', 0) * 100
-        pe = info.get('forwardPE', 0)
-        
-        # Signal Filtering (Pro Logic)
-        if untung >= 5.0 and rsi < 75: # RSI < 75 elak Overbought
+        if untung >= 5.0 and rsi < 75:
             vol_icon = "🦈" if volume > avg_vol else "🚀"
-            pesan += f"\n{vol_icon} <b>{s}</b>: ${harga:.2f} (Untung: {untung:.1f}%)"
-            pesan += f"\n   ↳ <i>RSI:{rsi:.0f} | MACD:{macd:.2f} | PM:{pm:.1f}% | PE:{pe:.1f}</i>"
+            pesan += f"\n{vol_icon} <b>{s}</b>: ${harga:.2f} (+{untung:.1f}%) | RSI: {rsi:.0f}"
             perlu_hantar = True
-            
         elif untung <= -3.0:
-            pesan += f"\n⚠️ <b>{s}</b>: ${harga:.2f} (SL! Rugi: {untung:.1f}%)"
+            pesan += f"\n⚠️ <b>{s}</b>: ${harga:.2f} (SL! {untung:.1f}%)"
             perlu_hantar = True
     except: continue
 
