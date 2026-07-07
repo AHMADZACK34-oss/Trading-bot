@@ -23,26 +23,26 @@ for s in senarai_saham:
         m_cap = info.get('marketCap', 0) / 1e9
         div = info.get('dividendYield', 0) * 100
         pe = info.get('trailingPE', 0)
+        # Margin ditambah semula di sini
+        margin = (info.get('profitMargins', 0) or 0) * 100
         
-        # Baiki ralat berita: Tambah check kalau 'title' wujud
+        # Berita Terkini
         news = t.news
-        news_text = "Tiada berita terkini."
+        news_text = "Tiada berita."
         if news and isinstance(news, list):
             titles = [n.get('title', 'Tiada tajuk') for n in news[:2]]
             news_text = "\n".join([f"• {t}" for t in titles])
         
-        # Logik Signal
         status = "HOLD"
         if ytd > 10: status = "🛒 BUY (Uptrend)"
         elif ytd < -10: status = "⚠️ SELL (Downtrend)"
         
         laporan += (f"\n<b>{s}</b> | {status} | ${curr:.2f}\n"
-                    f"• YTD: {ytd:.1f}% | PE: {pe:.1f} | Div: {div:.1f}%\n"
-                    f"• Cap: ${m_cap:.1f}B\n"
+                    f"• YTD: {ytd:.1f}% | PE: {pe:.1f} | Margin: {margin:.1f}%\n"
+                    f"• Cap: ${m_cap:.1f}B | Div: {div:.1f}%\n"
                     f"• Berita:\n{news_text}\n"
                     f"----------------------------")
 
-        # Noti Suara
         if "BUY" in status:
             tts = gTTS(text=f"BUY. Tahniah Tuan Zahran, {s} dalam trend positif.", lang='ms')
             tts.save("jarvis.mp3")
