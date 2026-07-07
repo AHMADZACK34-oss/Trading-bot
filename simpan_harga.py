@@ -1,49 +1,64 @@
-import yfinance as yf
-import requests
-import os
+import yfinance as yf, requests, os
+from gtts import gTTS
+import pandas as pd
 
+# Konfigurasi Telegram
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
 
-def hantar(pesan):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={'chat_id': CHAT_ID, 'text': pesan, 'parse_mode': 'HTML'})
+def hantar_ke_telegram(mesej, fail_suara=None):
+    # Hantar Laporan Teks
+    url_teks = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    requests.post(url_teks, data={'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'})
+    
+    # Hantar Suara Jarvis jika ada
+    if fail_suara:
+        url_suara = f"https://api.telegram.org/bot{TOKEN}/sendVoice"
+        files = {'voice': open(fail_suara, 'rb')}
+        requests.post(url_suara, data={'chat_id': CHAT_ID}, files=files)
 
-def analisa_saham(ticker_list):
-    laporan = "📈 <b>LAPORAN ANALISIS PRO</b>\n"
-    for s in ticker_list:
+def analisa_pasaran():
+    # Senarai kaunter anda
+    senarai_saham = ['NVDA', 'AAPL', 'TSLA']
+    laporan = "🧠 <b>LAPORAN JARVIS AI</b>\n"
+    
+    for s in senarai_saham:
         t = yf.Ticker(s)
         hist = t.history(period="1mo")
         info = t.info
         
-        # Data Asas
-        close = hist['Close'].iloc[-1]
+        current = hist['Close'].iloc[-1]
         volume = hist['Volume'].iloc[-1]
         avg_vol = hist['Volume'].mean()
         
-        # Teknikal (RSI Ringkas)
+        # Pengiraan RSI Ringkas
         delta = hist['Close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs.iloc[-1]))
+        rsi = 100 - (100 / (1 + (gain.iloc[-1] / loss.iloc[-1])))
         
-        # Fundamental & Jerung
-        pe = info.get('forwardPE', 0)
-        pm = info.get('profitMargins', 0) * 100
-        jerung = "🦈 AKTIF" if volume > avg_vol * 1.5 else "⚪ BIASA"
+        # Logik Jerung & Status
+        status_jerung = "🦈 AKTIF" if volume > avg_vol * 1.5 else "⚪ BIASA"
+        peratus_perubahan = ((current - hist['Open'].iloc[0]) / hist['Open'].iloc[0]) * 100
         
-        # Logik Keputusan
-        keputusan = "HOLD"
-        if rsi < 30 and pe < 20: keputusan = "🛒 BUY (Murah & Potensi)"
-        elif rsi > 70: keputusan = "💰 SELL (Overbought)"
-        elif volume > avg_vol * 2: keputusan = "🚀 BUY (Lonjakan Jerung)"
+        # Bina Mesej
+        laporan += f"\n<b>{s}</b>: ${current:.2f} ({peratus_perubahan:+.1f}%)\n"
+        laporan += f"• RSI: {rsi:.1f} | Jerung: {status_jerung}\n"
         
-        laporan += f"\n<b>{s}</b>: ${close:.2f}\n"
-        laporan += f"• Keputusan: {keputusan}\n"
-        laporan += f"• Jerung: {jerung} | RSI: {rsi:.1f}\n"
-        laporan += f"• PE: {pe:.1f} | Margin: {pm:.1f}%\n"
-    
-    hantar(laporan)
+        # Logik Jarvis Bersuara
+        if peratus_perubahan >= 5.0:
+            teks_suara = f"Tahniah Tuan Ahmad! Saham {s} telah melonjak {peratus_perubahan:.0f} peratus. Ini satu pencapaian yang hebat."
+            tts = gTTS(text=teks_suara, lang='ms')
+            tts.save("jarvis.mp3")
+            hantar_ke_telegram(f"🚀 <b>TAHNIAH!</b> {s} naik {peratus_perubahan:.1f}%", "jarvis.mp3")
+            
+        elif peratus_perubahan <= -3.0:
+            teks_suara = f"Amaran Tuan Ahmad! Saham {s} jatuh sebanyak {abs(peratus_perubahan):.0f} peratus. Sila ambil tindakan."
+            tts = gTTS(text=teks_suara, lang='ms')
+            tts.save("jarvis.mp3")
+            hantar_ke_telegram(f"⚠️ <b>BAHAYA!</b> {s} jatuh {peratus_perubahan:.1f}%", "jarvis.mp3")
+            
+    hantar_ke_telegram(laporan)
 
-analisa_saham(['NVDA', 'AAPL', 'TSLA', 'ORCL', 'WMT'])
+if name == "__main__":
+    analisa_pasaran()
