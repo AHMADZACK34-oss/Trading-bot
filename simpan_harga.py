@@ -2,37 +2,28 @@ import os
 import requests
 import yfinance as yf
 
-# Tetapan Portfolio Anda
-# Sila kemas kini BuyPrice, CutLoss, dan TakeProfit di sini apabila anda buat analisis baru
-PORTFOLIO = {
-    'NVDA': {'BuyPrice': 120.00, 'CutLoss': 100.00, 'TakeProfit': 160.00},
-    'AAPL': {'BuyPrice': 180.00, 'CutLoss': 160.00, 'TakeProfit': 220.00}
-}
-
+# Senarai saham anda sahaja
+SYMBOLS = ['NVDA', 'AAPL'] 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = '5217743374'
 
 def hantar_telegram(mesej):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    params = {'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'}
-    requests.get(url, params=params)
+    requests.get(f"https://api.telegram.org/bot{TOKEN}/sendMessage", params={'chat_id': CHAT_ID, 'text': mesej, 'parse_mode': 'HTML'})
 
-laporan = "📊 <b>LAPORAN PORTFOLIO HARIAN</b>\n"
+laporan = "📈 <b>LAPORAN TREND SEMASA</b>\n"
 
-for ticker, data in PORTFOLIO.items():
-    # Ambil data harga semasa
-    try:
-        harga_semasa = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
-        peratusan = ((harga_semasa - data['BuyPrice']) / data['BuyPrice']) * 100
-        
-        status = "HOLD ⚪"
-        if harga_semasa <= data['CutLoss']:
-            status = "⚠️ <b>CUT LOSS SEGERA!</b>"
-        elif harga_semasa >= data['TakeProfit']:
-            status = "💰 <b>TAKE PROFIT!</b>"
+for s in SYMBOLS:
+    stock = yf.Ticker(s)
+    hist = stock.history(period="60d") # Ambil data 60 hari
+    harga_semasa = hist['Close'].iloc[-1]
+    ma50 = hist['Close'].rolling(window=50).mean().iloc[-1] # Kira purata 50 hari
+    
+    # Logik Jual/Beli Dinamik
+    if harga_semasa > ma50:
+        status = "BULLISH 🟢 (Trend Naik - Hold/Beli)"
+    else:
+        status = "BEARISH 🔴 (Trend Turun - Jual/Cut Loss)"
             
-        laporan += f"\n<b>{ticker}</b>\nHarga: ${harga_semasa:.2f} ({peratusan:+.2f}%)\nStatus: {status}\n"
-    except Exception as e:
-        laporan += f"\n{ticker}: Gagal ambil data.\n"
+    laporan += f"\n<b>{s}</b>\nHarga: ${harga_semasa:.2f}\nMA50: ${ma50:.2f}\nStatus: {status}\n"
 
 hantar_telegram(laporan)
