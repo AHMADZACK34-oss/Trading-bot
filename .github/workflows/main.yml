@@ -1,17 +1,16 @@
 name: Trading Bot Automation
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    - cron: '45 13 * * *' # Jam 9:45 PM MYT
+    - cron: '46 13 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -19,8 +18,9 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install requests yfinance pandas gtts
+          pip install yfinance requests gTTS
       - name: Run bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python simpan_harga.py
