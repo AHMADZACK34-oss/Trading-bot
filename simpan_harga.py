@@ -36,5 +36,5 @@ def hantar_ke_telegram():
         
         time.sleep(3) # Delay 3 saat supaya Telegram tak block
 
-if name == "__main__":
+if __name__ == "__main__":
     hantar_ke_telegram()
