@@ -7,28 +7,35 @@ def hantar_ke_telegram():
     TOKEN = os.getenv('TELEGRAM_TOKEN')
     CHAT_ID = '5217743374'
     
-    # Senarai saham yang kau nak pantau
-    senarai_saham = ['AMD', 'WDC', 'INTC', 'TSLA', 'AAPL', 'NVDA', 'MSFT', 'META', 'GOOGL']
+    senarai_saham = ['AMD', 'ARM', 'ISRG'] # Tambah simbol lain di sini
     
     waktu_skrg = datetime.now().strftime('%d/%m/%y %I:%M %p')
-    laporan = f"<b>LIVE DATA - TUAN ZAHRAN</b>\n<i>Data: {waktu_skrg}</i>\n\n"
+    laporan = f"<b>MASTER DATA FUNDAMENTAL - TUAN ZAHRAN</b>\n<i>Data: {waktu_skrg}</i>\n\n"
     
     for s in senarai_saham:
         try:
-            # force_download=True memastikan data bukan dari cache lama
             ticker = yf.Ticker(s)
-            data = ticker.history(period='1d', interval='1m')
-            if not data.empty:
-                harga_terkini = data['Close'].iloc[-1]
-                laporan += f"<b>{s}:</b> ${harga_terkini:.2f}\n"
-            else:
-                laporan += f"<b>{s}:</b> Tiada data\n"
+            info = ticker.info
+            
+            # Tarik data lengkap
+            harga = info.get('currentPrice', 'N/A')
+            pe = info.get('trailingPE', 'N/A')
+            cap = info.get('marketCap', 0) / 1e9 # Dalam Billion
+            div = info.get('dividendYield', 0) * 100
+            debt = info.get('totalDebt', 0) / 1e9 # Dalam Billion
+            margin = info.get('profitMargins', 0) * 100
+            
+            laporan += (f"<b>{s} | HOLD | ${harga}</b>\n"
+                        f"• PE: {pe} | Margin: {margin:.1f}%\n"
+                        f"• Cap: ${cap:.1f}B | Debt: ${debt:.1f}B\n"
+                        f"• Div: {div:.1f}% | Berita: Tiada tajuk\n"
+                        f"------------------------------\n")
         except:
-            laporan += f"<b>{s}:</b> Error\n"
+            laporan += f"<b>{s}:</b> Ralat data\n"
             
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {'chat_id': CHAT_ID, 'text': laporan, 'parse_mode': 'HTML'}
     requests.post(url, data=payload)
 
-if __name__ == "__main__":
+if name == "__main__":
     hantar_ke_telegram()
