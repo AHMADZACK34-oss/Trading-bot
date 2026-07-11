@@ -30,5 +30,5 @@ def hantar_ke_telegram():
     payload = {'chat_id': CHAT_ID, 'text': laporan, 'parse_mode': 'HTML'}
     requests.post(url, data=payload)
 
-if name == "__main__":
+if __name__ == "__main__":
     hantar_ke_telegram()
